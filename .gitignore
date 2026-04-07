@@ -2,3 +2,4 @@
 /.gradle
 local.properties
 /amplituda/.cxx/*
+/build/reports/problems/problems-report.html
