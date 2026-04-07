@@ -11,14 +11,14 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.Locale;
 import com.linc.amplituda.Amplituda;
-import com.linc.amplituda.AmplitudaProgressListener;
 import com.linc.amplituda.AmplitudaResult;
 import com.linc.amplituda.Cache;
 import com.linc.amplituda.Compress;
 import com.linc.amplituda.InputAudio;
-import com.linc.amplituda.ProgressOperation;
 
 public class MainActivity extends AppCompatActivity {
+
+    private Amplituda amplituda;
 
     private final ActivityResultLauncher<String> permissionLauncher = registerForActivityResult(
             new ActivityResultContracts.RequestPermission(),
@@ -29,40 +29,24 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        amplituda = new Amplituda(this);
+        amplituda.setLogConfig(Log.ERROR, true);
         String permission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                 ? Manifest.permission.READ_MEDIA_AUDIO : Manifest.permission.READ_EXTERNAL_STORAGE;
         permissionLauncher.launch(permission);
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        amplituda.release();
+    }
+
     private void processAudio() {
-        Amplituda amplituda = new Amplituda(this);
-        amplituda.setLogConfig(Log.ERROR, true);
         amplituda.processAudio(
                 "/storage/emulated/0/Music/Linc - Amplituda.mp3",
                 Compress.withParams(Compress.PEAK, 1),
-                Cache.withParams(Cache.REFRESH),
-                new AmplitudaProgressListener() {
-                    @Override
-                    public void onStartProgress() {
-                        super.onStartProgress();
-                        System.out.println("Start Progress");
-                    }
-                    @Override
-                    public void onStopProgress() {
-                        super.onStopProgress();
-                        System.out.println("Stop Progress");
-                    }
-                    @Override
-                    public void onProgress(ProgressOperation operation, int progress) {
-                        String currentOperation = "";
-                        switch (operation) {
-                            case PROCESSING: currentOperation = "Process audio"; break;
-                            case DECODING: currentOperation = "Decode audio"; break;
-                            case DOWNLOADING: currentOperation = "Download audio from url"; break;
-                        }
-                        System.out.printf("%s: %d%% %n", currentOperation, progress);
-                    }
-                }
+                Cache.withParams(Cache.REFRESH)
         ).get(this::printResult, Throwable::printStackTrace);
     }
 
