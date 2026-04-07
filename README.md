@@ -2,7 +2,7 @@ An android library based on FFMPEG which process audio file and provide an array
 
 ### Note
 
-This library is a fork of original project of same name by [lincollincol](https://github.com/lincollincol), repurposed to work with [Felicity Music Player](https://github.com/Hamza417/Felicity), supports cancellation and other under the hood changed to make it more suitable for the app. This library offers no gaurantee of production use outside its original purpose to be used in [Felicity](https://github.com/Hamza417/Felicity), if you need to use this library then head to the original repo [Amplituda](https://github.com/lincollincol/Amplituda) instead.
+This library is a fork of original project of same name by [lincollincol](https://github.com/lincollincol), repurposed to work with [Felicity Music Player](https://github.com/Hamza417/Felicity), supports cancellation and other under the hood changed to make it more suitable for the app. This library offers no guarantee of production use outside its original purpose to be used in [Felicity](https://github.com/Hamza417/Felicity), if you need to use this library then head to the original repo [Amplituda](https://github.com/lincollincol/Amplituda) instead.
 
 ### Download
 ``` groovy
@@ -14,7 +14,7 @@ allprojects {
 ```
 ``` groovy
 dependencies {
-  implementation 'io.github.hamza417:Amplituda:3.0.1'
+  implementation 'io.github.hamza417:Amplituda:3.2.0'
 }
 ```
 

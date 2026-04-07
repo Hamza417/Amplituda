@@ -52,9 +52,11 @@ android {
     }
 }
 
+// Run this to publish:
+// ./gradlew publishToMavenCentral --no-configuration-cache
 mavenPublishing {
     configure(new AndroidSingleVariantLibrary("release", true, true))
-    coordinates("io.github.hamza417", "Amplituda", "3.0.1")
+    coordinates("io.github.hamza417", "Amplituda", "3.2.0")
 
     pom {
         name = "Amplituda"
