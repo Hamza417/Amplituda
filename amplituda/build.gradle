@@ -1,6 +1,8 @@
+import com.vanniktech.maven.publish.AndroidSingleVariantLibrary
+
 plugins {
     id 'com.android.library'
-    id 'maven-publish'
+    id 'com.vanniktech.maven.publish' version '0.36.0'
 }
 
 android {
@@ -48,21 +50,36 @@ android {
             version '3.22.1'
         }
     }
-
-    publishing {
-        singleVariant('release') {
-            withSourcesJar()
-        }
-    }
-
 }
 
-publishing {
-    publications {
-        release(MavenPublication) {
-            afterEvaluate {
-                from components.release
+mavenPublishing {
+    configure(new AndroidSingleVariantLibrary("release", true, true))
+    coordinates("io.github.hamza417", "Amplituda", "3.0.1")
+
+    pom {
+        name = "Amplituda"
+        description = "Audio waveform generation library for Android"
+        inceptionYear = "2026"
+        url = "https://github.com/Hamza417/Amplituda"
+        licenses {
+            license {
+                name = "Apache License 2.0"
+                url = "http://www.apache.org/licenses/LICENSE-2.0"
             }
         }
+        developers {
+            developer {
+                id = "Hamza417"
+                name = "Hamza Rizwan"
+                url = "https://github.com/Hamza417"
+            }
+        }
+        scm {
+            url = "https://github.com/Hamza417/Amplituda"
+            connection = "scm:git:git://github.com/Hamza417/Amplituda.git"
+            developerConnection = "scm:git:ssh://git@github.com/Hamza417/Amplituda.git"
+        }
     }
+
+    signAllPublications()
 }

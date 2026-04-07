@@ -6,12 +6,13 @@ case $ANDROID_ABI in
     EXTRA_BUILD_CONFIGURATION_FLAGS="$EXTRA_BUILD_CONFIGURATION_FLAGS --disable-asm"
     ;;
   x86_64)
-    EXTRA_BUILD_CONFIGURATION_FLAGS="$EXTRA_BUILD_CONFIGURATION_FLAGS --x86asmexe=${FAM_YASM}"
+    EXTRA_BUILD_CONFIGURATION_FLAGS="$EXTRA_BUILD_CONFIGURATION_FLAGS --x86asmexe=nasm"
     ;;
 esac
 
 # Preparing flags for enabling requested libraries
 ADDITIONAL_COMPONENTS=
+# shellcheck disable=SC2068
 for LIBRARY_NAME in ${FFMPEG_EXTERNAL_LIBRARIES[@]}
 do
   ADDITIONAL_COMPONENTS+=" --enable-$LIBRARY_NAME"
@@ -60,7 +61,6 @@ EXTRA_LDFLAGS="-Wl,-z,max-page-size=16384 $DEP_LD_FLAGS"
   --disable-ffprobe \
   \
   --disable-avfilter \
-  --disable-postproc \
   --disable-vulkan \
   --disable-swscale \
   \
@@ -139,6 +139,7 @@ EXTRA_LDFLAGS="-Wl,-z,max-page-size=16384 $DEP_LD_FLAGS"
   --enable-decoder=ac3 \
   --enable-decoder=ac3_fixed \
   --enable-decoder=flac \
+  --enable-decoder=alac \
   --enable-decoder=gsm \
   --enable-decoder=libgsm \
   --enable-decoder=gsm_ms \
@@ -163,6 +164,21 @@ EXTRA_LDFLAGS="-Wl,-z,max-page-size=16384 $DEP_LD_FLAGS"
   --disable-manpages \
   --disable-podpages \
   --disable-txtpages \
+  \
+  --enable-decoder=ape \
+  --enable-decoder=tta \
+  \
+  --enable-decoder=dsd_lsbf \
+  --enable-decoder=dsd_msbf \
+  --enable-decoder=dsd_lsbf_planar \
+  --enable-decoder=dsd_msbf_planar \
+  \
+  --enable-decoder=mpc7 \
+  --enable-decoder=mpc8 \
+  \
+  --enable-decoder=dca \
+  --enable-decoder=truehd \
+  --enable-decoder=eac3 \
   \
   ${EXTRA_BUILD_CONFIGURATION_FLAGS} \
   $ADDITIONAL_COMPONENTS || exit 1
