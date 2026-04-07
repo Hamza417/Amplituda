@@ -1,10 +1,10 @@
 An android library based on FFMPEG which process audio file and provide an array of samples. Based on the processed data, you can easily draw custom waveform using the value of the processed data array as the height of the single column. Average processing time is equal to 1 second for audio with duration **3 min 20 seconds** and **1 hour** audio will be processed in approximately 20 seconds.
 
-## Note
+### Note
 
 This library is a fork of original project of same name by [lincollincol](https://github.com/lincollincol), repurposed to work with [Felicity Music Player](https://github.com/Hamza417/Felicity), supports cancellation and other under the hood changed to make it more suitable for the app. This library offers no gaurantee of production use outside its original purpose to be used in [Felicity](https://github.com/Hamza417/Felicity), if you need to use this library then head to the original repo [Amplituda](https://github.com/lincollincol/Amplituda) instead.
 
-## Download
+### Download
 ``` groovy
 allprojects {
   repositories {
@@ -18,7 +18,7 @@ dependencies {
 }
 ```
 
-# License
+### License
 
 ```
    Copyright 2020-present lincollincol
