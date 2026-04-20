@@ -1,6 +1,7 @@
 package com.linc.amplituda;
 
 import android.content.Context;
+import android.os.ParcelFileDescriptor;
 import android.webkit.URLUtil;
 
 import com.linc.amplituda.exceptions.AmplitudaException;
@@ -129,6 +130,73 @@ public final class Amplituda {
         );
         currentTask.set(future);
         return new AmplitudaProcessingTask<>(future);
+    }
+
+    /**
+     * Starts processing an audio file represented by a {@link ParcelFileDescriptor}.
+     *
+     * This is your go-to method when working with the Storage Access Framework (SAF) - for
+     * example when the user picks a file through {@code ActivityResultContracts.OpenDocument}
+     * and you get back a {@code content://} URI. Just open the descriptor via
+     * {@code ContentResolver.openFileDescriptor(uri, "r")} and hand it straight to this method.
+     *
+     * The descriptor's contents are copied to a temporary cache file so the native decoder
+     * can process them. The descriptor itself is read exactly once and then closed - you do
+     * not need to close it manually after this call.
+     *
+     * @param pfd      a readable {@link ParcelFileDescriptor} pointing to the audio file
+     * @param compress compression parameters that control how amplitude samples are reduced
+     * @param cache    caching parameters that control whether results are stored or reused
+     * @return an {@link AmplitudaProcessingTask} representing the pending result
+     */
+    public AmplitudaProcessingTask<ParcelFileDescriptor> processAudio(
+            final ParcelFileDescriptor pfd,
+            final Compress compress,
+            final Cache cache
+    ) {
+        cancel();
+        Future<AmplitudaProcessingOutput<ParcelFileDescriptor>> future = executor.submit(
+                () -> executeProcessingFromFileDescriptor(pfd, compress, cache)
+        );
+        currentTask.set(future);
+        return new AmplitudaProcessingTask<>(future);
+    }
+
+    /**
+     * Internal processing entry point for {@link ParcelFileDescriptor} inputs.
+     * Copies the descriptor's stream to a temp file and hands off to the JNI decoder.
+     *
+     * @param pfd      the file descriptor to process
+     * @param compress compression parameters
+     * @param cache    caching parameters
+     * @return the processing output containing amplitude data or an error
+     */
+    private AmplitudaProcessingOutput<ParcelFileDescriptor> executeProcessingFromFileDescriptor(
+            final ParcelFileDescriptor pfd,
+            final Compress compress,
+            final Cache cache
+    ) {
+        InputAudio<ParcelFileDescriptor> inputAudio = new InputAudio<>(pfd, InputAudio.Type.FILE_DESCRIPTOR);
+        try {
+            checkCancelled();
+
+            File tempAudio = fileManager.getFileDescriptorFile(pfd, null);
+            if (tempAudio == null) {
+                return new AmplitudaProcessingOutput<>(
+                        new com.linc.amplituda.exceptions.io.FileNotFoundException(),
+                        inputAudio
+                );
+            }
+
+            checkCancelled();
+
+            AmplitudaResultJNI result = processFileJNI(tempAudio, inputAudio, compress, cache);
+            fileManager.deleteFile(tempAudio);
+            return new AmplitudaProcessingOutput<>(result, inputAudio);
+
+        } catch (AmplitudaException exception) {
+            return new AmplitudaProcessingOutput<>(exception, inputAudio);
+        }
     }
 
     /**

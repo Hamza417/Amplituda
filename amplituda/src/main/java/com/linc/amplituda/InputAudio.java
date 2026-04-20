@@ -46,6 +46,6 @@ public final class InputAudio<T> {
     }
 
     public enum Type {
-        FILE, PATH, URL, RESOURCE, INPUT_STREAM, BYTE_ARRAY
+        FILE, PATH, URL, RESOURCE, INPUT_STREAM, BYTE_ARRAY, FILE_DESCRIPTOR
     }
 }

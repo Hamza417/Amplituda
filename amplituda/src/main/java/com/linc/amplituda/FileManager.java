@@ -2,6 +2,7 @@ package com.linc.amplituda;
 
 import android.content.Context;
 import android.content.res.Resources;
+import android.os.ParcelFileDescriptor;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -162,6 +163,34 @@ final class FileManager {
             return null;
         }
         return temp;
+    }
+
+    /**
+     * Copies the audio data from a {@link ParcelFileDescriptor} into a temporary cache file
+     * so the native decoder can read it from a plain file path.
+     *
+     * This is the bridge between SAF (Storage Access Framework) and the rest of the library.
+     * SAF gives you a {@link ParcelFileDescriptor} - think of it as a handle to a file that
+     * lives somewhere the app might not have a direct path to (like cloud storage or another
+     * app's files). We just need to drain that handle into a temp file, and we're good to go.
+     *
+     * @param pfd      the file descriptor obtained from a SAF {@code ContentResolver} call
+     * @param listener optional progress listener; may be {@code null}
+     * @return a temporary {@link File} containing the audio data, or {@code null} on failure
+     */
+    synchronized File getFileDescriptorFile(
+            final ParcelFileDescriptor pfd,
+            final AmplitudaProgressListener listener
+    ) {
+        try {
+            // Wrap the raw FD in an InputStream - AutoCloseInputStream closes the FD for us
+            // when we're done reading, so no leaks here.
+            ParcelFileDescriptor.AutoCloseInputStream stream =
+                    new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+            return getInputStreamFile(stream, listener);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     /**
