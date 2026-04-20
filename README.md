@@ -14,7 +14,7 @@ allprojects {
 ```
 ``` groovy
 dependencies {
-  implementation 'io.github.hamza417:Amplituda:3.2.0'
+  implementation 'io.github.hamza417:Amplituda:3.3.0'
 }
 ```
 
