@@ -5,6 +5,7 @@ import android.os.ParcelFileDescriptor;
 import android.webkit.URLUtil;
 
 import com.linc.amplituda.exceptions.AmplitudaException;
+import com.linc.amplituda.exceptions.io.AmplitudaIOException;
 import com.linc.amplituda.exceptions.io.FileNotFoundException;
 import com.linc.amplituda.exceptions.io.InvalidAudioUrlException;
 import com.linc.amplituda.exceptions.processing.ProcessCancelledException;
@@ -71,6 +72,21 @@ public final class Amplituda {
     }
 
     /**
+     * Checks whether a cached amplitude result exists for the given audio file hash and cache key.
+     *
+     * @param hash the hash of the audio file, can be empty.
+     * @param key the cache key associated with the amplitude data, can be empty.
+     * @return {@code true} if a cached result exists, {@code false} otherwise
+     */
+    public boolean isCacheAvailable(final String hash, final String key) {
+        return fileManager.isCacheFileExists(hash, key);
+    }
+
+    public File getCacheFile(final String hash, final String key) throws AmplitudaIOException {
+        return fileManager.getCacheFile(hash, key);
+    }
+
+    /**
      * Clears any cached amplitude data associated with the given audio path or URL.
      *
      * @param audio the local file path or URL of the audio whose cache should be cleared
@@ -99,7 +115,7 @@ public final class Amplituda {
      * <p>
      * Call this when the {@code Amplituda} instance is no longer needed, for example in
      * {@code Activity.onDestroy()}, to avoid leaking the background thread. Any running
-     * task is cancelled before the executor is stopped.
+     * task is canceled before the executor is stopped.
      */
     public void release() {
         cancel();
