@@ -5,13 +5,11 @@ import android.os.ParcelFileDescriptor;
 import android.webkit.URLUtil;
 
 import com.linc.amplituda.exceptions.AmplitudaException;
-import com.linc.amplituda.exceptions.io.AmplitudaIOException;
 import com.linc.amplituda.exceptions.io.FileNotFoundException;
 import com.linc.amplituda.exceptions.io.InvalidAudioUrlException;
 import com.linc.amplituda.exceptions.processing.ProcessCancelledException;
 
 import java.io.File;
-import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -21,10 +19,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * Main entry point for the Amplituda library.
  * <p>
  * Processes an audio file at a local path or remote URL and extracts per-frame amplitude data.
- * Only one processing task runs at a time: calling
- * {@link #processAudio(String, Compress, Cache)} automatically cancels any task that is
- * currently running before submitting the new one. A task can also be cancelled explicitly
- * via {@link #cancel()}.
+ * Only one processing task runs at a time: starting a new one automatically cancels any task
+ * that is currently running. A task can also be cancelled explicitly via {@link #cancel()}.
  * <p>
  * Call {@link #release()} when the instance is no longer needed to free the internal
  * background thread.
@@ -40,7 +36,7 @@ public final class Amplituda {
     /**
      * Creates a new {@code Amplituda} instance.
      *
-     * @param context Android context used to access app resources and the cache directory
+     * @param context Android context used to access app resources and temp storage
      */
     public Amplituda(final Context context) {
         fileManager = new FileManager(context);
@@ -58,42 +54,6 @@ public final class Amplituda {
     public Amplituda setLogConfig(final int priority, final boolean enable) {
         AmplitudaLogger.enable(enable);
         AmplitudaLogger.priority(priority);
-        return this;
-    }
-
-    /**
-     * Clears all amplitude data that has been stored in the cache.
-     *
-     * @return this instance for chaining
-     */
-    public Amplituda clearCache() {
-        fileManager.clearAllCacheFiles();
-        return this;
-    }
-
-    /**
-     * Checks whether a cached amplitude result exists for the given audio file hash and cache key.
-     *
-     * @param hash the hash of the audio file, can be empty.
-     * @param key the cache key associated with the amplitude data, can be empty.
-     * @return {@code true} if a cached result exists, {@code false} otherwise
-     */
-    public boolean isCacheAvailable(final String hash, final String key) {
-        return fileManager.isCacheFileExists(hash, key);
-    }
-
-    public File getCacheFile(final String hash, final String key) throws AmplitudaIOException {
-        return fileManager.getCacheFile(hash, key);
-    }
-
-    /**
-     * Clears any cached amplitude data associated with the given audio path or URL.
-     *
-     * @param audio the local file path or URL of the audio whose cache should be cleared
-     * @return this instance for chaining
-     */
-    public Amplituda clearCache(final String audio) {
-        fileManager.clearCache(String.valueOf(audio.hashCode()));
         return this;
     }
 
@@ -132,17 +92,15 @@ public final class Amplituda {
      *
      * @param path     absolute local file path or remote URL of the audio file to process
      * @param compress compression parameters that control how amplitude samples are reduced
-     * @param cache    caching parameters that control whether results are stored or reused
      * @return an {@link AmplitudaProcessingTask} representing the pending result
      */
     public AmplitudaProcessingTask<String> processAudio(
             final String path,
-            final Compress compress,
-            final Cache cache
+            final Compress compress
     ) {
         cancel();
         Future<AmplitudaProcessingOutput<String>> future = executor.submit(
-                () -> executeProcessing(path, compress, cache)
+                () -> executeProcessing(path, compress)
         );
         currentTask.set(future);
         return new AmplitudaProcessingTask<>(future);
@@ -156,23 +114,21 @@ public final class Amplituda {
      * and you get back a {@code content://} URI. Just open the descriptor via
      * {@code ContentResolver.openFileDescriptor(uri, "r")} and hand it straight to this method.
      *
-     * The descriptor's contents are copied to a temporary cache file so the native decoder
+     * The descriptor's contents are copied to a temporary file so the native decoder
      * can process them. The descriptor itself is read exactly once and then closed - you do
      * not need to close it manually after this call.
      *
      * @param pfd      a readable {@link ParcelFileDescriptor} pointing to the audio file
      * @param compress compression parameters that control how amplitude samples are reduced
-     * @param cache    caching parameters that control whether results are stored or reused
      * @return an {@link AmplitudaProcessingTask} representing the pending result
      */
     public AmplitudaProcessingTask<ParcelFileDescriptor> processAudio(
             final ParcelFileDescriptor pfd,
-            final Compress compress,
-            final Cache cache
+            final Compress compress
     ) {
         cancel();
         Future<AmplitudaProcessingOutput<ParcelFileDescriptor>> future = executor.submit(
-                () -> executeProcessingFromFileDescriptor(pfd, compress, cache)
+                () -> executeProcessingFromFileDescriptor(pfd, compress)
         );
         currentTask.set(future);
         return new AmplitudaProcessingTask<>(future);
@@ -184,13 +140,11 @@ public final class Amplituda {
      *
      * @param pfd      the file descriptor to process
      * @param compress compression parameters
-     * @param cache    caching parameters
      * @return the processing output containing amplitude data or an error
      */
     private AmplitudaProcessingOutput<ParcelFileDescriptor> executeProcessingFromFileDescriptor(
             final ParcelFileDescriptor pfd,
-            final Compress compress,
-            final Cache cache
+            final Compress compress
     ) {
         InputAudio<ParcelFileDescriptor> inputAudio = new InputAudio<>(pfd, InputAudio.Type.FILE_DESCRIPTOR);
         try {
@@ -206,7 +160,7 @@ public final class Amplituda {
 
             checkCancelled();
 
-            AmplitudaResultJNI result = processFileJNI(tempAudio, inputAudio, compress, cache);
+            AmplitudaResultJNI result = processFileJNI(tempAudio, inputAudio, compress);
             fileManager.deleteFile(tempAudio);
             return new AmplitudaProcessingOutput<>(result, inputAudio);
 
@@ -221,13 +175,11 @@ public final class Amplituda {
      *
      * @param path     local path or URL of the audio file
      * @param compress compression parameters
-     * @param cache    caching parameters
      * @return the processing output containing amplitude data or an error
      */
     private AmplitudaProcessingOutput<String> executeProcessing(
             final String path,
-            final Compress compress,
-            final Cache cache
+            final Compress compress
     ) {
         InputAudio<String> inputAudio = new InputAudio<>(path);
         try {
@@ -237,7 +189,7 @@ public final class Amplituda {
                 // Local file path
                 inputAudio.setType(InputAudio.Type.PATH);
                 return new AmplitudaProcessingOutput<>(
-                        processFileJNI(new File(path), inputAudio, compress, cache),
+                        processFileJNI(new File(path), inputAudio, compress),
                         inputAudio
                 );
             }
@@ -255,7 +207,7 @@ public final class Amplituda {
             AmplitudaLogger.logOperationTime(AmplitudaLogger.OPERATION_PREPARING, startTime);
             checkCancelled();
 
-            AmplitudaResultJNI result = processFileJNI(tempAudio, inputAudio, compress, cache);
+            AmplitudaResultJNI result = processFileJNI(tempAudio, inputAudio, compress);
             fileManager.deleteFile(tempAudio);
             return new AmplitudaProcessingOutput<>(result, inputAudio);
 
@@ -266,15 +218,10 @@ public final class Amplituda {
 
     /**
      * Runs the native amplitude extraction on a local {@link File}.
-     * <p>
-     * Attempts to reuse a cached result when the cache policy allows it. If no valid
-     * cache entry is found the JNI decoder is invoked and the result may be persisted
-     * according to the cache policy.
      *
      * @param audioFile  the audio file to decode
      * @param inputAudio metadata container for the audio source
      * @param compress   compression parameters
-     * @param cache      caching parameters
      * @param <T>        the audio source type held by {@code inputAudio}
      * @return raw JNI result containing the amplitude string and duration
      * @throws AmplitudaException if the file does not exist or a native error occurs
@@ -282,44 +229,21 @@ public final class Amplituda {
     private synchronized <T> AmplitudaResultJNI processFileJNI(
             final File audioFile,
             final InputAudio<T> inputAudio,
-            final Compress compress,
-            final Cache cache
+            final Compress compress
     ) throws AmplitudaException {
         if (!audioFile.exists()) {
             throw new FileNotFoundException();
         }
 
         long startTime = System.currentTimeMillis();
-        File cacheFile = fileManager.getCacheFile(
-                String.valueOf(audioFile.hashCode()),
-                cache.getKey()
+
+        AmplitudaLogger.log("Process audio " + audioFile.getPath());
+        AmplitudaResultJNI result = amplitudesFromAudioJNI(
+                audioFile.getPath(),
+                compress.getType(),
+                compress.getPreferredSamplesPerSecond(),
+                null
         );
-
-        AmplitudaResultJNI result = null;
-        if (cache.getState() == Cache.REUSE) {
-            result = amplitudesFromCache(cacheFile);
-        }
-
-        if (result == null) {
-            AmplitudaLogger.log("Process audio " + audioFile.getPath());
-            result = amplitudesFromAudioJNI(
-                    audioFile.getPath(),
-                    compress.getType(),
-                    compress.getPreferredSamplesPerSecond(),
-                    cacheFile.getPath(),
-                    cache.isEnabled(),
-                    null
-            );
-        } else {
-            AmplitudaLogger.log(
-                    String.format(
-                            Locale.US,
-                            "Found cache data \"%s\" for audio \"%s\"",
-                            cacheFile.getName(),
-                            audioFile.getName()
-                    )
-            );
-        }
 
         inputAudio.setDuration(result.getDurationMillis());
         AmplitudaLogger.logOperationTime(AmplitudaLogger.OPERATION_PROCESSING, startTime);
@@ -353,33 +277,6 @@ public final class Amplituda {
         }
     }
 
-    /**
-     * Attempts to read previously computed amplitude data from a cache file.
-     *
-     * @param audioCache the cache file to read
-     * @return a populated {@link AmplitudaResultJNI} on success, or {@code null} if the
-     *         cache file is empty, missing, or malformed
-     */
-    private AmplitudaResultJNI amplitudesFromCache(final File audioCache) {
-        try {
-            String cacheData = fileManager.readFile(audioCache);
-            if (cacheData == null || cacheData.isEmpty()) {
-                return null;
-            }
-            int durationStartIdx = cacheData.indexOf("=");
-            int durationEndIdx = cacheData.indexOf(System.lineSeparator());
-            String duration = cacheData.substring(0, durationEndIdx)
-                    .substring(durationStartIdx + 1, durationEndIdx);
-            String amplitudes = cacheData.substring(durationEndIdx + 1);
-            AmplitudaResultJNI resultJNI = new AmplitudaResultJNI();
-            resultJNI.setDuration(Double.parseDouble(duration));
-            resultJNI.setAmplitudes(amplitudes);
-            return resultJNI;
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
     // NDK library initializer.
     static {
         System.loadLibrary("amplituda-native-lib");
@@ -389,8 +286,6 @@ public final class Amplituda {
             String pathToAudio,
             int compressType,
             int framesPerSecond,
-            String pathToCache,
-            boolean cacheEnabled,
             AmplitudaProgressListener listener
     );
 

@@ -4,102 +4,26 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.os.ParcelFileDescriptor;
 
-import com.linc.amplituda.exceptions.io.AmplitudaIOException;
-
 import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.Arrays;
 
 
 final class FileManager {
 
     private final Resources resources;
     private final String cache;
-    static final String AMPLITUDA_INTERNAL_CACHE = "internal-ampl-cache";
 
     FileManager(final Context context) {
         resources = context.getResources();
         cache = context.getCacheDir().getPath() + File.separator;
-    }
-
-    /**
-     * Get or create cache file by hash or key
-     */
-    synchronized File getCacheFile(
-            final String hash,
-            final String key
-    ) throws AmplitudaIOException {
-        try {
-            String name = AMPLITUDA_INTERNAL_CACHE + "_" + (key.isEmpty() ? hash : key) + ".txt";
-            File file = new File(cache, name);
-            if (!file.exists()) {
-                file.createNewFile();
-            }
-            return file;
-        } catch (IOException e) {
-            throw new AmplitudaIOException(e.getMessage(), ErrorCode.AMPLITUDA_EXCEPTION);
-        }
-    }
-
-    synchronized boolean isCacheFileExists(final String hash, final String key) {
-        String name = AMPLITUDA_INTERNAL_CACHE + "_" + (key.isEmpty() ? hash : key) + ".txt";
-        File file = new File(cache, name);
-        return file.exists();
-    }
-
-    /**
-     * Clear cache by id (key or hash)
-     */
-    synchronized void clearAllCacheFiles() {
-        clearCache(AMPLITUDA_INTERNAL_CACHE);
-    }
-
-    synchronized void clearCache(final String id) {
-        if (id == null || id.isEmpty()) {
-            return;
-        }
-        File[] files = new File(cache).listFiles(file ->
-                file.isFile() && file.getName().contains(id));
-
-        if (files == null) {
-            return;
-        }
-
-        for (File file : files) {
-            file.delete();
-        }
-    }
-
-    /**
-     * Read cache file
-     */
-    synchronized String readFile(
-            final File file
-    ) {
-        if (file == null) {
-            return null;
-        }
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            StringBuilder builder = new StringBuilder();
-            String line = reader.readLine();
-            while (line != null) {
-                builder.append(line).append(System.lineSeparator());
-                line = reader.readLine();
-            }
-            return builder.toString().trim();
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     /**
@@ -108,22 +32,6 @@ final class FileManager {
     synchronized void deleteFile(final File file) {
         if (file != null && file.exists()) {
             file.delete();
-        }
-    }
-
-    /**
-     * Get hash code for input stream
-     */
-    synchronized String getInputStreamHashString(InputStream is) {
-        try {
-            ByteArrayOutputStream os = new ByteArrayOutputStream();
-            byte[] buffer = new byte[0xFFFF];
-            for (int len = is.read(buffer); len != -1; len = is.read(buffer)) {
-                os.write(buffer, 0, len);
-            }
-            return String.valueOf(Arrays.hashCode(os.toByteArray()));
-        } catch (IOException ignored) {
-            return null;
         }
     }
 
@@ -170,7 +78,7 @@ final class FileManager {
     }
 
     /**
-     * Copies the audio data from a {@link ParcelFileDescriptor} into a temporary cache file
+     * Copies the audio data from a {@link ParcelFileDescriptor} into a temporary file
      * so the native decoder can read it from a plain file path.
      * <p>
      * This is the bridge between SAF (Storage Access Framework) and the rest of the library.
@@ -218,7 +126,7 @@ final class FileManager {
      * @return audio file from local storage
      */
     synchronized File getByteArrayFile(final byte[] audioByteArray, final AmplitudaProgressListener listener) {
-        File temp = new File(cache, String.valueOf(Arrays.hashCode(audioByteArray)));
+        File temp = new File(cache, "temp_" + System.nanoTime());
         try (FileOutputStream outputStream = new FileOutputStream(temp)) {
             if (listener != null) listener.onProgressInternal(0);
             outputStream.write(audioByteArray);

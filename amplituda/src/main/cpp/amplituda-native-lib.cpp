@@ -259,16 +259,12 @@ Java_com_linc_amplituda_Amplituda_amplitudesFromAudioJNI(
         jstring jaudio_path,
         jint jcompress_type,
         jint jframes_per_second,
-        jstring jcache_path,
-        jboolean jcache_enabled,
         jobject jlistener
 ) {
     int ret = 0;
     // input params
     const int preferred_frames_per_second = (int) jframes_per_second;
     int compress_type = (int) jcompress_type;
-    bool cache_enabled = (int) jcache_enabled;
-    const char* cache_audio_path = cache_enabled ? env->GetStringUTFChars(jcache_path, 0) : NULL;
     const char* input_audio_path = env->GetStringUTFChars(jaudio_path, 0);
 
     // meta and params
@@ -276,7 +272,6 @@ Java_com_linc_amplituda_Amplituda_amplitudesFromAudioJNI(
     int actual_frames_per_second, compression_divider = 1;
     double duration = 0.0;
     bool valid_listener = false;
-    FILE *cache_file;
 
     // listener method ref
     jmethodID on_progress_method;
@@ -305,11 +300,6 @@ Java_com_linc_amplituda_Amplituda_amplitudesFromAudioJNI(
     std::vector<int> temp_data;
     std::string amplitudes_data;
     std::string errors_data;
-
-    if(cache_enabled) {
-        fclose(fopen(cache_audio_path, "w+"));
-        cache_file = fopen(cache_audio_path, "a+");
-    }
 
     // open input file, and allocate format context
     if (avformat_open_input(&fmt_ctx, input_audio_path, NULL, NULL) < 0) {
@@ -365,10 +355,6 @@ Java_com_linc_amplituda_Amplituda_amplitudesFromAudioJNI(
         nb_frames = (audio_dec_ctx->sample_rate * (int) duration) / audio_dec_ctx->frame_size;
     }
 
-    if(cache_enabled) {
-        fprintf(cache_file, "duration=%f\n", duration);
-    }
-
     // prepare compression params
     actual_frames_per_second = (int) (nb_frames / duration);
 
@@ -404,13 +390,11 @@ Java_com_linc_amplituda_Amplituda_amplitudesFromAudioJNI(
             if(compress_type != COMPRESS_NONE && current_frame_idx % compression_divider == 0) {
                 std::string temp_sample_str = compress_temp_amplitudes_data(&temp_data, &compress_type);
                 amplitudes_data += temp_sample_str;
-                if(cache_enabled) write_cache_data(cache_file, &temp_sample_str);
                 temp_data.clear();
             }
             if(compress_type == COMPRESS_NONE) {
                 std::string temp_sample_str = concat_temp_amplitudes_data(&temp_data);
                 amplitudes_data += temp_sample_str;
-                if(cache_enabled) write_cache_data(cache_file, &temp_sample_str);
                 temp_data.clear();
             }
         }
@@ -470,11 +454,6 @@ Java_com_linc_amplituda_Amplituda_amplitudesFromAudioJNI(
     // return without ffmpeg release
     end_return:
 
-    if(cache_enabled) {
-        fclose(cache_file);
-        cache_file = NULL;
-        env->ReleaseStringUTFChars(jcache_path, cache_audio_path);
-    }
     env->ReleaseStringUTFChars(jaudio_path, input_audio_path);
     env->SetDoubleField(amplitudaResultReturnObject, duration_field, duration);
     env->SetObjectField(amplitudaResultReturnObject, amplitudes_field, env->NewStringUTF(amplitudes_data.c_str()));

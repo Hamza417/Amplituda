@@ -12,7 +12,6 @@ import java.util.Arrays;
 import java.util.Locale;
 import com.linc.amplituda.Amplituda;
 import com.linc.amplituda.AmplitudaResult;
-import com.linc.amplituda.Cache;
 import com.linc.amplituda.Compress;
 import com.linc.amplituda.InputAudio;
 
@@ -45,8 +44,7 @@ public class MainActivity extends AppCompatActivity {
     private void processAudio() {
         amplituda.processAudio(
                 "/storage/emulated/0/Music/Linc - Amplituda.mp3",
-                Compress.withParams(Compress.PEAK, 1),
-                Cache.withParams(Cache.REFRESH)
+                Compress.withParams(Compress.PEAK, 1)
         ).get(this::printResult, Throwable::printStackTrace);
     }
 
